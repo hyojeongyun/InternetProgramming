@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>My Tetris</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+	<div class="sidenav">
+	  <a style="padding-top: 80px;" href="home.jsp">Home</a>
+	  <a href="game.html">Play</a>
+	  <a href="update.jsp">Change Info</a>
+	  <a href="delete.jsp">Delete Account</a>
+	</div>
+	
+	<div class="main">
+        <script>
+			var init=false;
+			var myCanvas;
+			var Context;
+
+			var Mode=1; 
+			const MODE_GAME=1;
+			const MODE_OVER=2;
+
+			var tetris_blockbox_boxsize=35;
+			var tetris_blockbox_top=100;
+			var tetris_blockbox_left=180;
+
+			var tetris_blockbox;
+
+			var score;
+
+			var RunEvent;
+			var RunEventTime = 500;
+			var level=1;
+			var exp=0;
+
+			function tetris_blockbox_init()
+			{
+				tetris_blockbox=new Array();
+				for(i=0;i<20;++i)
+				{
+					tetris_blockbox.push(new Array(10));
+
+					for(j=0;j<10;++j)tetris_blockbox[i][j]=0;
+				}
+			}
+
+			var tetris_block;
+
+			var tetris_now;
+
+			function tetris_block_init()
+			{
+				tetris_block=new Array();
+
+				tmp=new Array();
+				tmp.push(0,0); tmp.push(0,1); tmp.push(0,2); tmp.push(0,3);
+				tetris_block.push(tmp);
+
+				tmp=new Array();
+				tmp.push(0,0); tmp.push(0,1); tmp.push(0,2); tmp.push(1,1);
+				tetris_block.push(tmp);
+
+				tmp=new Array();
+				tmp.push(0,0); tmp.push(0,1); tmp.push(1,1); tmp.push(1,2);
+				tetris_block.push(tmp);
+
+				tmp=new Array();
+				tmp.push(0,1); tmp.push(0,2); tmp.push(1,0); tmp.push(1,1);
+				tetris_block.push(tmp);
+
+				tmp=new Array();
+				tmp.push(0,0); tmp.push(0,1); tmp.push(1,0); tmp.push(1,1);
+				tetris_block.push(tmp);
+
+				tmp=new Array();
+				tmp.push(0,0); tmp.push(0,1); tmp.push(0,2); tmp.push(1,0);
+				tetris_block.push(tmp);
+
+				tmp=new Array();
+				tmp.push(0,0); tmp.push(0,1); tmp.push(0,2); tmp.push(1,2);
+				tetris_block.push(tmp);
+			}
+
+			var tetris_num=1;
+			var tetris_x=3;
+			var tetris_y=0;
+
+			function Init()
+			{
+				if(init==false)
+				{
+					myCanvas=document.getElementById("MyCanvas");
+					Context=myCanvas.getContext("2d");		
+					tetris_block_init();	
+					tetris_blockbox_init();	
+					tetris_num=Math.floor(Math.random()*6.9);
+					tetris_now = tetris_block[tetris_num].slice();
+					score=0;
+					init=true;
+				}
+			}
+
+			function CheckConflict()
+			{
+				var size=tetris_now.length;
+				for(k=0;k<size;k+=2)
+				{
+					check_y = tetris_y + tetris_now[k];
+					check_x = tetris_x + tetris_now[k+1];
+					if(check_y < 0 )continue;	
+
+					if(check_x < 0 || check_x >=10 || check_y >= 20 || tetris_blockbox[check_y][check_x]!=0)return true;
+				}
+				return false;
+			}
+
+			function Run()
+			{
+				if(CheckConflict()) 
+					Mode=MODE_OVER;
+
+				if(Mode==MODE_GAME)
+				{	
+					tetris_y++;
+
+					if(CheckConflict())
+					{
+						tetris_y--;
+						var size=tetris_now.length;
+
+						for(k=0;k<size;k+=2)
+						{
+							check_y = tetris_y + tetris_now[k];
+							check_x = tetris_x + tetris_now[k+1];
+							tetris_blockbox[check_y][check_x]=1;
+						}
+					
+						for(i=0;i<20;++i)
+						{
+							sum=0;
+							for(j=0;j<10;++j)
+								if(tetris_blockbox[i][j]!=0)
+									sum++;
+
+							if(sum==10)
+							{
+								for(k=i;k>0;--k)
+									for(j=0;j<10;++j)
+										tetris_blockbox[k][j]=tetris_blockbox[k-1][j];
+								score+=10;
+
+								exp++;
+								if(exp>=10){
+									level++; exp=0;
+									RunEventTime-=50;
+									clearInterval(RunEvent);
+									RunEvent = setInterval(Run, RunEventTime);
+								}
+
+							}
+						}
+
+						tetris_y=0;
+						tetris_x=3;
+						tetris_num=Math.floor(Math.random()*6.9);
+						tetris_now=tetris_block[tetris_num].slice();
+
+					}
+				}
+
+				onDraw();
+			}
+
+			function RotateBlock()
+			{
+				switch(tetris_num)
+				{
+					case 0: case 1: case 2: case 3: case 5: case 6:
+						
+						centerY=0; centerX=1;	
+						break;
+					case 4:
+						
+						return;
+				}
+
+				tetris_s = tetris_now.slice();
+				for(i=0;i<tetris_now.length;i+=2)
+				{
+					y=tetris_now[i+1] - centerX;
+					x=-(tetris_now[i] - centerY);
+					tetris_now[i]=y + centerY;
+					tetris_now[i+1]=x + centerX;
+				}
+
+				if(CheckConflict())
+					tetris_now=tetris_s.slice();
+			}
+			function onKeyDown(event)
+			{
+				if(Mode==MODE_GAME)
+				{
+
+					if(event.which==37)	
+					{
+						tetris_x--;
+						if(CheckConflict())tetris_x++;
+						else onDraw();
+					}
+					if(event.which==39)	
+					{
+						tetris_x++;
+						if(CheckConflict())tetris_x--;
+						else onDraw();
+					}
+					if(event.which==40 || event.which==32)	
+					{
+						tetris_y++;
+						if(CheckConflict())tetris_y--;
+						else onDraw();
+					}
+					if(event.which==38)	
+					{
+						RotateBlock();
+						onDraw();
+					}
+				}
+				
+			}
+
+			function onDraw()
+			{
+				if(init==false)return;
+				
+				for(i=0;i<20;++i)
+					for(j=0;j<10;++j)
+					{
+						if(tetris_blockbox[i][j]==0)
+							Context.fillStyle="#818181";
+						else
+							Context.fillStyle="rgb(25,124,153)";
+						
+						
+						var size=tetris_now.length;
+						for(k=0;k<size;k+=2)
+						{
+							if(tetris_y+tetris_now[k]==i
+							&& tetris_x+tetris_now[k+1]==j)
+								Context.fillStyle="rgb(25,124,153)"; 
+						}
+
+						x=tetris_blockbox_left + j*tetris_blockbox_boxsize;
+						y=tetris_blockbox_top + i*tetris_blockbox_boxsize;
+						Context.fillRect(x, y, tetris_blockbox_boxsize-2, tetris_blockbox_boxsize-2);
+					}
+				
+				Context.font = "30px verdana";
+				Context.fillStyle="#eee";
+				Context.fillRect(550, 100, 250, 40);
+				Context.fillRect(550, 160, 250, 40);
+				Context.fillStyle="rgb(25,124,153)";
+				Context.fillText("Score " + score, 600, 130);
+				Context.fillText("Level " + level, 600, 190);
+
+				if(Mode==MODE_OVER)
+				{
+					Context.fillStyle="red";
+					Context.fillText("GAME OVER", tetris_blockbox_left + 90, tetris_blockbox_top + 300);
+				}
+			}
+
+			$(document).ready(function(){
+				Init();
+				RunEvent = setInterval(Run, RunEventTime);
+			});
+
+			$(document).keydown(function( event ){
+				onKeyDown(event);		
+			});
+
+
+        </script>
+        <canvas id="MyCanvas" style="background-color: white; " width=1000 height="940">
+            Canvas is not supported.
+            </canvas>
+	</div>
+</body>
+</html>
